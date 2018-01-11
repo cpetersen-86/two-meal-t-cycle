@@ -20,7 +20,7 @@
 ^RightLever=2
 
 \ Variables Used:
-\ B=Bin Length (in minutes)
+\ B=Bin Length (in seconds)
 \ C=Lever Bin Array
 \ I=Index into the various time based arrays (C)
 \ J,K,L=Current Hour,Minute,Second
