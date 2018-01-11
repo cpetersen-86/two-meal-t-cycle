@@ -1,0 +1,169 @@
+\ Filename: Lever Variable T-Cycle.MPC
+\ Christian Petersen
+\ Date: 21 Feb 2013
+\ FI lever task designed for operant boxes with pellet dispenser reinforcement.
+\ Program to be started at the end of a meal
+\ IMPORTANT: To synchronize properly, program must be initialized PRIOR to the set start minute (W), immediately following a mealtime
+
+\ Last edit: 30 Sept 2017
+\ made program more versatile: length of T-cycle and meal determined in first line (N and S, respectively), prior to START command
+\ (allows for length of t-cycle and meal to be set in the macro)
+
+\ PREVIOUS CHANGES:
+\ Added a timer (for in between meals) and a second timer (for meals) to automate the 16h T cycle.  -1 sept 2016 CP
+\ All changeable variables are now defined in S.S.1, S1, making changes far simpler
+\ Start time is now time-dependent
+\ Eliminated seperate response counter and reward counter. Placed reward administration into S.S.1 (Main FI logic)
+
+
+
+\Defining Constants:
+^Pellet=8
+^RightLever=2
+
+\ Variables Used:
+\ B=Bin Length (in minutes)
+\ C=Lever Bin Array
+\ D=Reward Bin Array
+\ F=No meal counter
+\ I=Index into the various time based arrays (C,D)
+\ J,K,L=Current Hour,Minute,Second
+\ M=Minute Timer
+\ N=Length between meals
+\ P=Meal length counter
+\ S=Length of meals
+\ U=Data flush frequency
+\ W=Minute start time
+\ X=FI interval
+\ Y=Mealtime Indicator (0=no meal, 1=meal)
+
+diskvars=C,D,N,S
+DIM C = 250000 \arbitrary value
+DIM D = 250000
+
+
+\-----------------S.S.1: Main Control Logic for FI schedule -----------------------------/
+S.S.1,
+S1,
+    0.01": SET W=00, B=60, N=1380, S=120, U=180, X=3, Y=0, R=25  --->S2
+
+
+S2,
+    #START:  ON ^RightLever; SET R=R*60, N = R-S; SHOW 7,T-Length,R, 8,MealLength,S--->S3      \Sets needed values (see above)
+
+\--------Sets Time to Start------------
+S3,
+    0.01": TIME J,K,L;
+    IF K=W[@start,@wait]
+            @start: SET X=X*1"--->S4     \Converts X into seconds
+            @wait:--->S3
+\--------------------------------------
+S4,
+    X#T:--->S5
+S5,
+    #R3: IF Y=1 [@food, @nofood]
+                 @food: ON^Pellet ---> S6
+                 @nofood: ---> S4
+S6,
+    0.05": OFF^Pellet; Z1 --->S4
+
+
+\-----------------S.S.2: Time Display-----------------------------/
+S.S.2,
+S1,
+    #START: SHOW 1,Elapsed Time,M --->S2
+
+S2,
+    0.01": TIME J,K,L;
+    IF K=W[@start,@wait]
+            @start: --->S3
+            @wait:---> S2
+
+S3,
+    1': ADD M; SHOW 1,Elapsed Time,M --->SX    \Adds M as minutes
+
+
+
+\-----S.S.3: Incremental response count array: C(0)=total responses; C(I)=current bin responses-----/
+S.S.3,
+S1,
+    #START: SET I=1--->S2
+
+S2,
+    0.01": TIME J,K,L;
+    IF K=W[@start,@wait]
+            @start:SHOW 2,Bin Presses,C(I), 3,Total Presses,C(0) --->S3
+            @wait:--->S2
+
+S3,
+    1": SHOW 2,Bin Presses,C(I), 3,Total Presses,C(0) --->S4
+
+S4,   \Response Count and Display
+    #R3: ADD C(0), C(I); SHOW 2,Bin Presses,C(I), 3,Total Presses,C(0) --->SX
+
+\-----S.S.4: Incremental Reward Count Array: D(0)=total rewards; D(I)=current bin rewards-----/
+S.S.4,
+S1,
+    #START: ---> S2
+
+S2,
+   0.01": TIME J,K,L;
+   IF K=W[@start,@wait]
+           @start: SHOW 4,Bin Pellets,D(I), 5,Total Pellets,D(0) --->S3
+           @wait:--->S2
+
+S3,
+    1": SHOW 4,Bin Pellets,D(I), 5,Total Pellets,D(0) --->S4
+
+S4,   \Reward Count and Display
+    #Z1: ADD D(0), D(I); SHOW 4,Bin Pellets,D(I), 5,Total Pellets,D(0) --->SX
+
+\---------------S.S.5: Increment to the next counter every B minutes---------------/
+S.S.5,
+S1,
+    #START: SET C(I+1)=-987.987---> S2
+
+S2,
+    0.01": TIME J,K,L;
+    IF K=W[@start,@wait]
+            @start:SET B=B*1" --->S3    \Converts B into seconds
+            @wait:---> S2
+
+S3,
+    B#T: ADD I; SET C(I)=0, C(I+1)=-987.987, D(I)=0, D(I+1)=-987.987; SHOW 2,Bin Presses,C(I), 4,Bin Pellets,D(I) --->SX
+
+
+\-----------------S.S.6: Periodic Data Flush-----------------------------/
+S.S.6,
+S1,
+#START: SET U=U*1'--->S2  \Converts G into minutes
+S2,
+    0.01": TIME J,K,L;
+        IF K=W[@start,@wait]
+                @start:--->S3
+                @wait:--->S2
+S3,
+    U#T: FLUSH --->SX
+
+
+\-----------------------S.S.7 T26 Mealtime Determiner--------------------------------------------------
+S.S.7, \Timer for the 26h meal (determine whether it is meal time)
+S1,
+#START: SET F=0; SHOW 6,MealInd,Y --->S2
+S2,
+    0.01": TIME J,K,L;
+        IF K=W[@start,@wait]
+                @start: --->S3
+                @wait:--->S2
+S3,
+    1':ADD F; IF F < N [@nomeal, @meal]
+                        @nomeal: SHOW 6,MealInd,Y---> S3
+                        @meal: SET Y = 1; SHOW 6,MealInd,Y ---> S4
+S4,
+    0.01": SET F=0, P=0 ---> S5
+S5,
+    1': ADD P; IF P=S [@end, @cont]
+                         @end: SET Y=0; SHOW 6,MealInd,Y ---> S3
+                         @cont: ---> S5
+
+

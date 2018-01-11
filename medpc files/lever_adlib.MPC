@@ -1,0 +1,142 @@
+\ Filename: Lever_adlib.MPC
+\ Christian Petersen
+\ Date: 21 Feb 2013
+\ FI-2 nose-poking task designed for operant boxes with pellet dispenser reinforcement.
+
+\ Last edit: 20 Sept 2017 CP
+\ Start time now synchronized to the next upcoming minute (no need to set start time)
+\ Removed nose-poke array
+
+\ PREVIOUS CHANGES: All changeable variables are now defined in S.S.1, S1, making changes far simpler
+\ Start time is now time-dependent
+\ Added Incremental Reward Count Array
+\ Added periodic data flush (frequency determined in SS1, S1 (U)
+\ Eliminated seperate response counter and reward counter. Placed reward administration into S.S.1 (Main FI logic)
+
+\Defining Constants:
+^Pellet=8
+^RightLever=2
+
+\ Variables Used:
+\ B=Bin Length (in seconds)
+\ C=Lever Bin Array
+\ D=Reward Bin Array
+\ I=Index into the various time based arrays (C,D)
+\ J,K,L=Current Hour,Minute,Second
+\ M=Minute Timer
+\ U=Data flush frequency
+\ W=To synchronize start time with the minute
+\ X=FI interval
+
+
+diskvars=X,W,C,D
+DIM C = 250000 \arbitrary value
+DIM D = 250000
+
+\-----------------S.S.1: Main Control Logic for FI schedule -----------------------------/
+S.S.1,
+S1,
+    #START: SET W=00, B=1, X=1, U=240; ON ^RightLever --->S2      \Sets needed values (see above)
+
+\--------Sets Time to Start------------
+S2,
+    0.01": TIME J,K,L;
+    IF L=W[@start,@wait]
+            @start:SET X=X*1"--->S3      \Converts X into seconds
+            @wait:--->S2
+
+\--------------------------------------
+S3,
+    X#T:--->S4                     \FI logic
+S4,
+    #R3: ON^Pellet --->S5
+S5,
+    0.05": OFF^Pellet; Z1 --->S3
+
+
+\-----------------S.S.2: Time Display-----------------------------/
+S.S.2,
+S1,
+    #START: SHOW 1,Elapsed Time,M --->S2
+
+S2,
+    0.01": TIME J,K,L;
+    IF L=W[@start,@wait]
+            @start:--->S3
+            @wait:--->S2
+
+
+S3,
+    1': ADD M; SHOW 1,Elapsed Time,M --->SX    \Adds M as minutes
+
+
+
+\-----S.S.3: Incremental response count array: C(0)=total responses; C(I)=current bin responses-----/
+S.S.3,
+S1,
+    #START: SET I=1--->S2
+
+S2,
+        0.01": TIME J,K,L;
+        IF L=W[@start,@wait]
+            @start:SHOW 2,Bin Presses,C(I), 3,Total Presses,C(0) --->S3
+            @wait:--->S2
+
+S3,
+    1": SHOW 2,Bin Presses,C(I), 3,Total Presses,C(0) --->S4
+
+S4,   \Response Count and Display
+    #R3: ADD C(0), C(I); SHOW 2,Bin Presses,C(I), 3,Total Presses,C(0) --->SX
+
+
+
+\-----S.S.4: Incremental Reward Count Array: D(0)=total rewards; D(I)=current bin rewards-----/
+S.S.4,
+S1,
+    #START:  ---> S2
+
+S2,
+       0.01": TIME J,K,L;
+        IF L=W[@start,@wait]
+            @start:SHOW 4,Bin Pellets,D(I), 5,Total Pellets,D(0) --->S3
+            @wait:--->S2
+
+S3,
+    1": SHOW 4,Bin Pellets,D(I), 5,Total Pellets,D(0) --->S4
+
+S4,   \Reward Count and Display
+    #Z1: ADD D(0), D(I); SHOW 4,Bin Pelelts,D(I), 5,Total Pellets,D(0) --->SX
+
+
+
+\---------------S.S.5: Increment to the next counter every B minutes---------------/
+S.S.5,
+S1,
+    #START: SET C(I+1)=-987.987, D(I+1)=-987.987---> S2
+
+S2,
+        0.01": TIME J,K,L;
+        IF L=W[@start,@wait]
+            @start:SET B=B*1' --->S3
+            @wait:--->S2
+
+S3,
+    B#T: ADD I; SET C(I)=0, C(I+1)=-987.987, D(I)=0, D(I+1)=-987.987; SHOW 2,Bin Presses,C(I), 4,Bin Pellets,D(I) --->SX
+
+
+
+
+\-----------------S.S.6: Periodic Data Flush-----------------------------/
+S.S.6,
+S1,
+    #START: SET U=U*1'--->S2  \Converts U into minutes
+S2,
+        0.01": TIME J,K,L;
+        IF L=W[@start,@wait]
+            @start: --->S3
+            @wait:--->S2
+S3,
+    U#T: FLUSH --->SX
+
+
+

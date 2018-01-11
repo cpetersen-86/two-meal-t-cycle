@@ -1,0 +1,87 @@
+\ Lever Food_Dep.MPC
+\ Created by: Christian Petersen
+\ Originally created on: 2/21/2013
+
+\ Last edit: 20 Sept 2017
+\ Start time now synchronized to the next upcoming minute (no need to set start time)
+\ Removed nose-poke array
+
+\ PREVIOUS CHANGES:
+\ Changed from FAANOMEAL_Final
+\ All changeable variables are now defined in S.S.1, S1, making changes far simpler
+\ Made entire program's start time time-dependent
+\ Added periodic data flush
+\ Requires manual STOPABORTFLUSH
+\ Uses right lever only.
+\ No rewards given
+
+\Defining Constants:
+^Pellet=8
+^RightLever=2
+
+\ Variables Used:
+\ B=Bin Length (in minutes)
+\ C=Lever Bin Array
+\ I=Index into the various time based arrays (C)
+\ J,K,L=Current Hour,Minute,Second
+\ M=Minute Timer
+\ U=Data flush frequency
+\ W=Synchronizes start time to the second
+\ X=FI interval
+
+diskvars=W,C
+DIM C = 250000 \arbitrary value
+
+\-----------------S.S.1: Time Display-----------------------------/
+S.S.1,
+S1,
+   #START: SET W=0, B=60, U=240; ON ^RightLever; SHOW 1,Time Elapsed,M  --->S2        \Sets needed values (see above)
+
+\--------Sets Time to Start------------
+S2,
+    0.01": TIME J,K,L;
+    IF L=W[@start,@wait]
+            @start:--->S3      \Converts X into seconds
+            @wait:--->S2
+S3,
+    1': ADD M; SHOW 1,Time Elapsed,M --->SX  \Adds M as minutes
+
+\-----S.S.2: Incremental response count array: C(0)=total responses; C(I)=current bin responses-----/
+S.S.2,
+S1,
+    #START: SET I = 1 --->S2
+S2,
+    0.01": TIME J,K,L;
+    IF L=W[@start,@wait]
+            @start: SHOW 2,Bin Presses,C(I), 3,Total Presses,C(0)--->S3
+            @wait:--->S2
+S3,
+    1": SHOW 2,Bin Presses,C(I), 3,Total Presses,C(0) --->S4
+
+S4,   \Response Count and Display
+    #R3: ADD C(0), C(I); SHOW 2,Bin Presses,C(I), 3,Total Presses,C(0) --->SX
+
+\---------------S.S.4: Increment to the next counter every B seconds---------------/
+S.S.3,
+S1,
+    #START: SET C(I+1)=-987.987--->S2
+S2,
+    0.01": TIME J,K,L;
+    IF L=W[@start,@wait]
+            @start: SET B=B*1"--->S3   \Converts B into seconds
+            @wait:--->S2
+S3,
+    B#T: ADD I; SET C(I) = 0, C(I+1) = -987.987; SHOW 2,Bin Presses,C(I) --->SX
+
+\-----------------S.S.4: Periodic Data Flush-----------------------------/
+S.S.4,
+S1,
+    #START: SET U=U*1'--->S2  \Converts G into minutes
+S2,
+    0.01": TIME J,K,L;
+        IF L=W[@start,@wait]
+                @start: --->S3
+                @wait:--->S2
+S3,
+    U#T: FLUSH --->SX
+
