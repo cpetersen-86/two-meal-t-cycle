@@ -18,7 +18,7 @@
 ^RightLever=2
 
 \ Variables Used:
-\ B=Bin Length (in seconds)
+\ B=Bin Length (in minutes)
 \ C=Lever Bin Array
 \ D=Reward Bin Array
 \ I=Index into the various time based arrays (C,D)
