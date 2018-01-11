@@ -22,7 +22,7 @@
 ^RightLever=2
 
 \ Variables Used:
-\ B=Bin Length (in minutes)
+\ B=Bin Length (in seconds)
 \ C=Lever Bin Array
 \ D=Reward Bin Array
 \ F=No meal counter
@@ -118,7 +118,7 @@ S3,
 S4,   \Reward Count and Display
     #Z1: ADD D(0), D(I); SHOW 4,Bin Pellets,D(I), 5,Total Pellets,D(0) --->SX
 
-\---------------S.S.5: Increment to the next counter every B minutes---------------/
+\---------------S.S.5: Increment to the next counter every B seconds---------------/
 S.S.5,
 S1,
     #START: SET C(I+1)=-987.987---> S2
