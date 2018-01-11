@@ -1,0 +1,5 @@
+Analyses include the last meal of both T's (start at the beginning of the last T26 mealtime, or 23:00)
+Settings:
+Start: .5, End: 30, Step: .1
+Cycles: 48, Sigma: 2, Bin: 3
+Color Map: Rainbow
