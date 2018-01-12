@@ -1,17 +1,15 @@
 \ Filename: OFAAMEAL_adlib.MPC
 \ Christian Petersen
 \ Date: 21 Feb 2013
-\ Added a 14h timer (for in between meals) and a 2h timer (for meals) to automate the 16h T cycle.  -1 sept 2016 CP
-\ Program must be started at the end of a meal (beginning of 16h no meal period)
-\ Modified for use with nose-poke, as opposed to lever presses  -CP 22 April 2016
-\ Variable FI nose-poking task designed for operant boxes with pellet dispenser reinforcement.
+\ Adapted for use with a 2 meal schedule - one non-24h meal and one daily meal - Sept 2017 CP
+\ Added a timer for in between meals (A) and another timer for meal durations (E) to automate the T cycle (Set in SS1).  -1 sept 2016 CP
+\ Program must be started at the end of the non-24h meal (beginning of no meal period)
+\ Variable FI lever-pressing task designed for operant boxes with pellet dispenser reinforcement.
 \ PREVIOUS CHANGES: All changeable variables are now defined in S.S.1, S1, making changes far simpler
 \ Start time is now time-dependent
 \ Added Incremental Reward Count Array
 \ Added periodic data flush (every 120 minutes)
 \ Eliminated seperate response counter and reward counter. Placed reward administration into S.S.1 (Main FI logic)
-\ Duration adjustable
-\ No houselight illumination
 
 
 \Defining Constants:
@@ -19,29 +17,32 @@
 ^RightLever=2
 
 \ Variables Used:
+\ A=Duration between non-24h meals (T length minus meal length) in minutes
 \ B=Bin Length (in seconds)
 \ C=Lever Bin Array
 \ D=Reward Bin Array
-\ F=14h Counter (for no meal)
-\ I=Index into the various time based arrays (C,D,H)
+\ E=Duration of non-24h meal (in minutes)
+\ F=Non-24h Counter (for time between non-24h meals)
+\ I=Index into the various time based arrays (C,D)
 \ J,K,L=Current Hour,Minute,Second
 \ M=Minute Timer
-\ P=meal length counter
+\ P=meal length counter (for non-24h meal)
 \ R=Time (PST) of the 24h meal
 \ S=24h Mealtime Indicator (0=no meal, 1=meal)
 \ U=Data flush frequency
-\ W=the start minute
+\ W=the start minute (to synchronize time)
 \ X=FI interval
 \ Y=26h Mealtime Indicator (0=no meal, 1=meal)
+\ Available variables (G, H, N, O,T, V)
 
-diskvars=C,D,H
+diskvars=C,D
 DIM C = 250000 \arbitrary value
 DIM D = 250000
 
 \-----------------S.S.1: Main Control Logic for FI schedule -----------------------------/
 S.S.1,
 S1,
-    #START: SET W=00, B=60, R=12, U=360, X=3, Y=0, S=0; ON ^RightLever --->S2      \Sets needed values (see above)
+    #START: SET W=00, R=12, A=1500, E=60, B=60, U=360, X=3, Y=0, S=0; ON ^RightLever --->S2      \Sets needed values (see above)
 
 \--------Sets Time to Start------------
 S2,
@@ -148,13 +149,13 @@ S2,
                 @start: --->S3
                 @wait:--->S2
 S3,
-    1':ADD F; IF F < 1500 [@nomeal, @meal]
+    1':ADD F; IF F < A [@nomeal, @meal]
                         @nomeal: ---> S3
                         @meal: SET Y = 1; SHOW 7,T26 Ind,Y ---> S4
 S4,
     0.01": SET F=0, P=0 ---> S5
 S5,
-    1': ADD P; IF P=60 [@end, @cont]
+    1': ADD P; IF P=E [@end, @cont]
                          @end: SET Y=0; SHOW 7, T26 Ind,Y ---> S3
                          @cont: ---> S5
 
